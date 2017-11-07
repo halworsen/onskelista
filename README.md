@@ -1,4 +1,4 @@
 # ønskelista
-Wishlist website made from your bookmarks
+innards of http://www.pvv.ntnu.no/~markuswh/onskelista/
 
-only works on windows
+only works on windows :(
