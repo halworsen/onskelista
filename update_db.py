@@ -110,11 +110,12 @@ with contextlib.closing(sqlite3.connect('wishes.sqlite')) as bm_conn:
 			statement += l
 		cursor.execute(statement)
 
+	#########################################################################
+
 	# used to track which items should be removed
 	all_items_cursor = cursor.execute('SELECT item_id FROM bookmarks')
 	to_remove = list(all_items_cursor.fetchall())
 	to_remove = [v[0] for v in to_remove]
-	print(to_remove)
 
 	for cat_id in wish_list:
 		# check if the category already exists in the database
@@ -132,6 +133,8 @@ with contextlib.closing(sqlite3.connect('wishes.sqlite')) as bm_conn:
 				cursor.execute('UPDATE bookmarks SET title=?, desc=? WHERE item_id=?', values)
 	
 				del to_remove[to_remove.index(cat_id)]
+
+	#########################################################################
 
 		wish_cursor = cursor.execute('SELECT item_id FROM bookmarks WHERE type=1')
 		wish_ids = wish_cursor.fetchall()
@@ -152,6 +155,8 @@ with contextlib.closing(sqlite3.connect('wishes.sqlite')) as bm_conn:
 
 					del to_remove[to_remove.index(wish_id)]
 					print('Updated wish %s in database' % wish_id)
+
+	#########################################################################
 
 	if to_remove:
 		print("%s item(s) was/were slated for removal" % len(to_remove))
