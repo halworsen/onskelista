@@ -1,4 +1,4 @@
-CREATE TABLE `bookmarks` (
+CREATE TABLE IF NOT EXISTS `bookmarks` (
 	`id`	INTEGER PRIMARY KEY AUTOINCREMENT,
 	`wish_id`	INTEGER,
 	`title`	TEXT,

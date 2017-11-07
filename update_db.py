@@ -7,12 +7,6 @@ profile_id = 'f9psb5ao'
 # plug in the name of the wishlist bookmark folder here
 wishlist_folder_name = 'Ønskelista'
 
-# make sure the wishes sqlite DB exists
-cwd = os.getcwd()
-if not os.path.exists(cwd + '\\wishes.sqlite'):
-	print("wishes DB doesn't exist, try making it first")
-	exit()
-
 appdata = os.getenv('APPDATA')
 profile_dir = appdata + '\\Mozilla\\Firefox\\Profiles\\' + profile_id + '.default'
 ff_db_dir = profile_dir + '\\places.sqlite'
@@ -53,6 +47,13 @@ print('Inserting wishes into wishes database')
 
 with contextlib.closing(sqlite3.connect('wishes.sqlite')) as bm_conn:
 	cursor = bm_conn.cursor()
+
+	# create tables in db
+	with open('setup.sql', 'r') as setup:
+		statement = ''
+		for l in setup.readlines():
+			statement += l
+		cursor.execute(statement)
 
 	# used to track which wishes should be removed
 	all_wishes_cursor = cursor.execute('SELECT id FROM bookmarks')
