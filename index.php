@@ -1,6 +1,8 @@
 <?php
 	date_default_timezone_set('Europe/Oslo');
 
+	require('src/util.php');
+	require('src/category.php');
 	require('src/wish.php');
 	require('src/wishmaster.php');
 
@@ -8,9 +10,10 @@
 	$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 	$wishMaster = new WishMaster($pdo);
 
-	function change_sort($a, $b){
-		return ($a->getChangedTimestamp() < $b->getChangedTimestamp()) ? 1 : -1;
-	}
+	$categories = $wishMaster->getCategorizedWishes();
+	usort($categories, 'alphabetical_title');
+	// items with no category always go to the bottom
+	usort($categories, 'category_sort');
 ?>
 
 <!DOCTYPE html>
@@ -22,26 +25,42 @@
 
 <header>
 	<h2>ønskelista</h2>
-	<p class="desc">
+	<p>
 		Diverse tull direkte fra bokmerkeraden min som jeg synes det hadde vært kult å ha
 		<br><br>
 		Lista oppdateres hver dag kl. 12
 	</p>
 </header>
 
-<div>
-	<ul>
+<div class="content">
+	<ul class="categories">
 		<?php
-			$wishes = $wishMaster->getAll();
-			usort($wishes, "change_sort");
-
-			foreach($wishes as $k => $wish){
+			foreach($categories as $k => $category){
+				if($category->wishAmt() > 0){
 		?>
-				<?= '<a href="' . $wish->getURL() . '">' ?><li>
-					<p class="card-title"><?= $wish->getTitle(); ?></p>
-					<p class="changed"><?= 'Sist endret ' . $wish->getChangedTime(); ?></p>
-				</li></a>
+					<h2><?= $category->getTitle(); ?></h2>
+					<p><?= $category->getDesc(); ?></p>
+					<ul class="wishes">
+
 		<?php
+					foreach($category->getWishes() as $k2 => $wish){
+		?>
+
+							<?= '<a href="' . $wish->getURL() . '" alt="hi">' ?>
+								<li>
+									<p class="card-title"><?= $wish->getTitle(); ?></p>
+									<p class="desc"><?= $wish->getDesc(); ?></p>
+									<p class="changed"><?= 'Sist endret ' . $wish->getChangedTime(); ?></p>
+								</li>
+							</a>
+		<?php
+					}
+		?>
+
+					</ul>
+
+		<?php
+				}
 			}
 		?>
 	</ul>

@@ -12,37 +12,92 @@ profile_dir = appdata + '\\Mozilla\\Firefox\\Profiles\\' + profile_id + '.defaul
 ff_db_dir = profile_dir + '\\places.sqlite'
 
 print('Creating wish list')
-wish_list = [] # pun not intended
+wish_list = {} # pun not intended
+
+#############################################################################
+
 # grab all wishes and construct a datastructure suitable for insertion into a new database
 with contextlib.closing(sqlite3.connect(ff_db_dir)) as ff_conn:
 	cursor = ff_conn.cursor()
 
+	#########################################################################
+
 	print('Finding bookmark folder ID')
+
 	folder_title = (wishlist_folder_name,)
 	wishlist_cursor = cursor.execute('SELECT * FROM moz_bookmarks WHERE type=2 AND title=?', folder_title)
 	wishlist_folder = wishlist_cursor.fetchone()
-	folder_id = (wishlist_folder[0],) # index 0 = id
+	folder_id = wishlist_folder[0] # index 0 = id
 
-	print('Selecting wish bookmarks')
-	wishes_cursor = cursor.execute('SELECT * FROM moz_bookmarks WHERE type=1 AND parent=?', folder_id)
-	wishes = wishes_cursor.fetchall()
+	wish_list[folder_id] = {'name': 'Annet', 'desc': '', 'bookmarks': {}}
+
+	#########################################################################
+
+	print('Finding wish categories')
+
+	categories_cursor = cursor.execute('SELECT * FROM moz_bookmarks WHERE type=2 AND parent=?', (folder_id,))
+	category_data = categories_cursor.fetchall()
+
+	for cat in category_data:
+		wish_list[cat[0]] = {'name': cat[5], 'desc': '', 'bookmarks': {}}
+
+	#########################################################################
+
+	print('Finding wish bookmarks')
+
+	statement_vars = []
+	statement = 'SELECT * FROM moz_bookmarks WHERE type=1 AND (parent=?'
+	for cat_id in wish_list:
+		if cat_id != folder_id:
+			statement += ' OR parent=?'
+		statement_vars.append(cat_id)
+	statement += ')'
+
+	wish_cursor = cursor.execute(statement, statement_vars)
+	wishes = wish_cursor.fetchall()
 	
-	print('Finding wish bookmark links')
+	print('Finding bookmark links')
+
 	wish_links = [] # the 0th element will contain the link for the first wish in the wishes list
 	for wish in wishes:
-		fk = (wish[2],) # fk - the id of the row containing the link in moz_places
+		fk = (wish[2],) # the id of the row containing the link in moz_places
 
 		place_cursor = cursor.execute('SELECT * FROM moz_places WHERE id=?', fk)
 		place = place_cursor.fetchone()
-		wish_links.append(place[1]) # 2nd element contains the link
-		print('Found link for wish %s' % wish[0])
 
-	for i,v in enumerate(wishes):
-		# index 5 is bookmark title, 9 is last changed timestamp
-		wish_data = (v[0], v[5], wish_links[i], v[9])
-		wish_list.append(wish_data)
+		wish_list[wish[3]]['bookmarks'][wish[0]] = {'name': wish[5], 'desc': '', 'link': place[1], 'changed': wish[9]}
+
+	#########################################################################
+
+	print('Finding descriptions')
+
+	statement_vars = []
+	statement = 'SELECT * FROM moz_items_annos WHERE type=3 AND (item_id=?'
+	for cat_id in wish_list:
+		if cat_id != folder_id:
+			statement += ' OR item_id=?'
+		statement_vars.append(cat_id)
+
+		for wish_id in wish_list[cat_id]['bookmarks']:
+			statement += ' OR item_id=?'
+			statement_vars.append(wish_id)
+	statement += ')'
+
+	desc_cursor = cursor.execute(statement, statement_vars)
+	descriptions = desc_cursor.fetchall()
+
+	for desc in descriptions:
+		if desc[1] in wish_list:
+			wish_list[desc[1]]['desc'] = desc[4]
+
+		for cat in wish_list:
+			if desc[1] in wish_list[cat]['bookmarks']:
+				wish_list[cat]['bookmarks'][desc[1]]['desc'] = desc[4]
 
 print('Wish list created!\n')
+
+#############################################################################
+
 print('Inserting wishes into wishes database')
 
 with contextlib.closing(sqlite3.connect('wishes.sqlite')) as bm_conn:
@@ -55,39 +110,54 @@ with contextlib.closing(sqlite3.connect('wishes.sqlite')) as bm_conn:
 			statement += l
 		cursor.execute(statement)
 
-	# used to track which wishes should be removed
-	all_wishes_cursor = cursor.execute('SELECT id FROM bookmarks')
-	to_remove = all_wishes_cursor.fetchall()
-	to_remove = [v[0] for v in to_remove] # it's returned as a list of tuples, sooo... :s
+	# used to track which items should be removed
+	all_items_cursor = cursor.execute('SELECT item_id FROM bookmarks')
+	to_remove = list(all_items_cursor.fetchall())
+	to_remove = [v[0] for v in to_remove]
+	print(to_remove)
 
-	for wish in wish_list:
-		wish_id = (wish[0],)
+	for cat_id in wish_list:
+		# check if the category already exists in the database
+		category_cursor = cursor.execute('SELECT item_id FROM bookmarks WHERE type=2')
+		category_ids = category_cursor.fetchall()
+		category_ids = [v[0] for v in category_ids]
 
-		# check if the wish already exists in the database
-		wish_cursor = cursor.execute('SELECT * FROM bookmarks WHERE wish_id=?', wish_id)
-		wish_row = wish_cursor.fetchone()
+		if cat_id not in category_ids:
+			values = (cat_id, wish_list[cat_id]['name'], wish_list[cat_id]['desc'])
+			cursor.execute('INSERT INTO bookmarks(item_id, type, title, desc) VALUES (?, 2, ?, ?)', values)
+
+		for id in category_ids:
+			if id == cat_id:
+				values = (wish_list[cat_id]['name'], wish_list[cat_id]['desc'], cat_id)
+				cursor.execute('UPDATE bookmarks SET title=?, desc=? WHERE item_id=?', values)
+	
+				del to_remove[to_remove.index(cat_id)]
+
+		wish_cursor = cursor.execute('SELECT item_id FROM bookmarks WHERE type=1')
+		wish_ids = wish_cursor.fetchall()
+		wish_ids = [v[0] for v in wish_ids]
 		
-		# update existing wish
-		if wish_row:
-			update_values = wish[1:] + wish[:1] # move wish_id to the last index
-			test = cursor.execute('UPDATE bookmarks SET title=?, url=?, changed=? WHERE wish_id=?', update_values)
+		for wish_id in wish_list[cat_id]['bookmarks']:
+			if wish_id not in wish_ids:
+				bookmark = wish_list[cat_id]['bookmarks'][wish_id]
+				values = (wish_id, cat_id, bookmark['name'], bookmark['desc'], bookmark['link'], bookmark['changed'])
+				cursor.execute('INSERT INTO bookmarks (item_id, type, category, title, desc, url, changed) VALUES (?, 1, ?, ?, ?, ?, ?)', values)
+				print('Inserted wish %s into database' % wish_id)
 
-			# pop the wish from the list of wishes to be removed
-			db_id = cursor.execute('SELECT id FROM bookmarks WHERE wish_id=?', wish_id).fetchone()[0]
-			del to_remove[to_remove.index(db_id)]
+			for id in wish_ids:
+				if id == wish_id:
+					bookmark = wish_list[cat_id]['bookmarks'][wish_id]
+					values = (cat_id, bookmark['name'], bookmark['desc'], bookmark['link'], bookmark['changed'], wish_id)
+					cursor.execute('UPDATE bookmarks SET category=?, title=?, desc=?, url=?, changed=? WHERE item_id=?', values)
 
-			print('Updated wish %s in database' % wish[0])
-		else:
-			# brand new wish!!!
-			cursor.execute('INSERT INTO bookmarks(wish_id, title, url, changed) VALUES (?, ?, ?, ?)', wish)
-			print('Inserted wish %s into database' % wish[0])
+					del to_remove[to_remove.index(wish_id)]
+					print('Updated wish %s in database' % wish_id)
 
-	#to_remove = [v for v in to_remove if v is not None] relic of an ancient past where i did to_remove[i] = None to remove from to_remove
 	if to_remove:
-		print("%s wish(es) were slated for removal" % len(to_remove))
+		print("%s item(s) was/were slated for removal" % len(to_remove))
 		for db_id in to_remove:
 			db_id = (db_id,) #sqlite3 pls
-			cursor.execute('DELETE FROM bookmarks WHERE id=?', db_id)
+			cursor.execute('DELETE FROM bookmarks WHERE item_id=?', db_id)
 
 	bm_conn.commit()
 

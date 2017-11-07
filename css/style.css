@@ -10,19 +10,6 @@ html{
 	overflow-x: hidden;
 }
 
-.changed{
-	position: absolute;
-	bottom: 1em;
-	font-size: .8em;
-}
-
-.card-title{
-	font-size: 1.5em;
-	margin-bottom: 1em;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
 header{
 	display: flex;
 	justify-content: center;
@@ -42,10 +29,6 @@ header h2{
 	margin-bottom: .3em;
 }
 
-.desc{
-	font-size: .8em;
-}
-
 a{
 	text-decoration: none;
 }
@@ -54,40 +37,86 @@ hr{
 	border: 1px solid gray;
 }
 
-ul{
-	list-style: none;
-	display: block;
-	padding-left: 2em;
-	padding-right: 2em;
+.content{
+	margin: 0 2em;
 }
 
-ul li{
+.categories{
+	list-style: none;
+	margin-top: 2em;
+	padding: 0;
+}
+
+.categories > *{
+	color: #111111;
+}
+
+.categories > p{
+	margin-bottom: 1em;
+}
+
+.categories li{
+	padding: 0;
+}
+
+.wishes{
+	list-style: none;
+	display: block;
+	padding: 0em;
+}
+
+.wishes li{
 	position: relative;
 	box-shadow: 1px 1px 5px #888888;
 	height: 5em;
 	background-color: #111111;
 	padding: 1em;
-	margin-top: 2em;
-	margin-bottom: 2em;
+	margin: 1.5em 0;
 }
 
-@media(max-width: 24em){
+.card-title{
+	font-size: 1.5em;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.desc{
+	font-size: .8em;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.changed{
+	position: absolute;
+	bottom: 1em;
+	font-size: .8em;
+}
+
+@media(max-width: 25em){
 	header h2{
 		font-size: 2em;
+	}
+
+	header p{
+		font-size: .8em;
+	}
+
+	.categories > p{
+		font-size: .9em;
 	}
 
 	.card-title{
 		font-size: 1.2em;
 	}
 
-	.changed{
-		font-size: 0.7em;
+	.desc{
+		font-size: .9em;
 	}
-}
 
-@media(max-width: 35em){
-	ul{
-		padding-left: 1em;
-		padding-right: 1em;
+	.changed{
+		font-size: .9em;
 	}
 }

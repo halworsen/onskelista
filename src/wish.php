@@ -3,14 +3,19 @@
 class Wish{
 	private $title, $url, $changed;
 
-	public function __construct($title, $url, $changed){
+	public function __construct($title, $desc, $url, $changed){
 		$this->title = $title;
+		$this->desc = $desc;
 		$this->url = $url;
 		$this->changed = $changed;
 	}
 
 	public function getTitle(){
 		return $this->title;
+	}
+
+	public function getDesc(){
+		return $this->desc;
 	}
 
 	public function getURL(){
